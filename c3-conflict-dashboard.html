@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>C3 – Conflict Status Board</title>
+
+<style>
+  :root{
+    --c3-green:#16a34a;
+    --c3-green-deep:#022c22;
+    --c3-green-mid:#064e3b;
+    --text-main:#e5e7eb;
+    --text-muted:#9ca3af;
+    --page-bg:#ffffff;
+    --border:#0f172a;
+
+    --status-green:#4ade80;
+    --status-gold:#facc15;
+    --status-orange:#fb923c;
+    --status-red:#f87171;
+    --status-maroon:#f97373;
+    --status-neutral:#9ca3af;
+  }
+
+  *{
+    box-sizing:border-box;
+  }
+
+  body{
+    margin:0;
+    padding:40px 12px;
+    background:var(--page-bg);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--text-main);
+  }
+
+  #presence-board{
+    background:
+      radial-gradient(circle at top, rgba(34,197,94,.35) 0%, transparent 55%),
+      linear-gradient(135deg, var(--c3-green-deep), var(--c3-green-mid));
+    padding:24px 22px 10px;
+    max-width:1000px;
+    margin:0 auto;
+    border-radius:22px;
+    border:1px solid rgba(15,23,42,.65);
+    box-shadow:
+      0 24px 60px rgba(15,23,42,.75),
+      0 0 40px rgba(34,197,94,.35),
+      inset 0 0 0 1px rgba(148,163,184,.3);
+  }
+
+  .board-title{
+    font-size:20px;
+    font-weight:700;
+    text-align:center;
+    margin-bottom:6px;
+    letter-spacing:.3px;
+    color:#f9fafb;
+    text-shadow:
+      0 0 8px rgba(34,197,94,.7),
+      0 0 18px rgba(34,197,94,.4);
+  }
+
+  .board-subtitle{
+    font-size:13px;
+    text-align:center;
+    margin-bottom:18px;
+    color:var(--text-muted);
+  }
+
+  .board-title::after{
+    content:"";
+    display:block;
+    width:88px;
+    height:3px;
+    margin:10px auto 0;
+    background:#bbf7d0;
+    border-radius:999px;
+    box-shadow:0 0 12px rgba(34,197,94,.85);
+  }
+
+  .rows{
+    margin-top:4px;
+  }
+
+  .row{
+    display:grid;
+    grid-template-columns: minmax(0,2fr) minmax(0,1.2fr);
+    gap:12px;
+    padding:11px 0;
+    border-bottom:1px solid rgba(15,23,42,.65);
+    align-items:center;
+  }
+
+  .row:last-child{
+    border-bottom:none;
+  }
+
+  .label{
+    font-size:14px;
+    font-weight:500;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .label-sub{
+    font-size:11px;
+    color:#9ca3af;
+    margin-top:2px;
+  }
+
+  .label-neutral{ color:var(--status-neutral); }
+  .label-green{ color:var(--status-green); }
+  .label-gold{ color:var(--status-gold); }
+  .label-orange{ color:var(--status-orange); }
+  .label-red{ color:var(--status-red); }
+  .label-maroon{ color:var(--status-maroon); }
+
+  .status-cell{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+  }
+
+  .status-badge{
+    font-size:11px;
+    font-weight:600;
+    padding:5px 14px;
+    border-radius:999px;
+    border:1px solid transparent;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    color:#f9fafb;
+  }
+
+  .status-green{ background:rgba(22,163,74,.25); border-color:rgba(74,222,128,.9); }
+  .status-gold{ background:rgba(202,138,4,.25); border-color:rgba(250,204,21,.95); }
+  .status-orange{ background:rgba(234,88,12,.22); border-color:rgba(251,146,60,.95); }
+  .status-red{ background:rgba(220,38,38,.24); border-color:rgba(248,113,113,.95); }
+  .status-maroon{ background:rgba(127,29,29,.3); border-color:rgba(248,113,113,.95); }
+  .status-neutral{ background:rgba(31,41,55,.7); border-color:rgba(148,163,184,.95); }
+</style>
+</head>
+
+<body>
+
+<div id="presence-board">
+  <div class="board-title">C3 Conflict Status Dashboard</div>
+  <div class="board-subtitle">
+    Green command panel with neon status indicators synced to each conflict.
+  </div>
+
+  <div class="rows" id="conflict-rows"></div>
+</div>
+
+<script>
+(() => {
+  const mount = document.getElementById("conflict-rows");
+
+  const STATUS_OPTIONS = [
+    { key:"neutral_abstain", label:"Abstain / No Position", category:"neutral", code:"NEU-A" },
+    { key:"neutral_not_issue", label:"Not an Issue / N/A", category:"neutral", code:"NEU-N" },
+    { key:"green_in_motion", label:"In Motion", category:"green", code:"GRN-IM" },
+    { key:"green_engaged", label:"Engaged", category:"green", code:"GRN-EN" },
+    { key:"green_stabilized", label:"Stabilized", category:"green", code:"GRN-ST" },
+    { key:"green_on_target", label:"On Target", category:"green", code:"GRN-OT" },
+    { key:"green_resolved", label:"Resolved", category:"green", code:"GRN-RS" },
+    { key:"gold_mission_done", label:"Mission Accomplished", category:"gold", code:"GLD-MA" },
+    { key:"orange_needs_attention", label:"Needs Attention", category:"orange", code:"ORG-NA" },
+    { key:"orange_pending", label:"Pending", category:"orange", code:"ORG-PE" },
+    { key:"red_under_review", label:"Under Review", category:"red", code:"RED-UR" },
+    { key:"red_standing_by", label:"Standing By", category:"red", code:"RED-SB" },
+    { key:"maroon_negative", label:"Negative", category:"maroon", code:"MRN-NE" },
+    { key:"maroon_compromised", label:"Compromised", category:"maroon", code:"MRN-CO" },
+    { key:"maroon_jeopardy", label:"In Jeopardy", category:"maroon", code:"MRN-IJ" },
+  ];
+
+  const STATUS_MAP = STATUS_OPTIONS.reduce((acc,s)=>{acc[s.key]=s;return acc;},{});
+
+  const CONFLICTS = [
+    { name: "CTIP VIC 13_15_21", statusKey: "green_resolved" },
+    { name: "Mediation with Anita G. Mason", statusKey: "maroon_negative" },
+    { name: "Public Relations & Credibility as a Good Actor", statusKey: "orange_needs_attention" },
+    { name: "Russia - Ukraine Conflict", statusKey: "red_under_review" },
+    { name: "322 Appointments for MGE LLC", statusKey: "orange_pending" },
+    { name: "$100,000 Annual Revenue for MGE", statusKey: "green_on_target" },
+    { name: "International Relations", statusKey: "green_in_motion" },
+    { name: "Pneuma/Non-corporeal Recruitment Badges", statusKey: "orange_needs_attention" },
+    { name: "Slander Conflict about Dey", statusKey: "red_under_review" },
+    { name: "ICE Participation", statusKey: "green_in_motion" },
+    { name: "SLEB Operation", statusKey: "green_engaged" },
+    { name: "Representing a pharmaceutical medication", statusKey: "neutral_abstain" },
+    { name: "Donating 2 Billion Computers", statusKey: "gold_mission_done" },
+    { name: "Obtain a Real ID", statusKey: "orange_pending" },
+    { name: "Obtain Passport", statusKey: "green_resolved" },
+    { name: "Send Letter to U.S. President", statusKey: "red_standing_by" },
+    { name: "Study CEO Legislation", statusKey: "maroon_compromised" },
+    { name: "Send Letter to Senator Schumer", statusKey: "maroon_jeopardy" },
+    { name: "Send Letter to FBI", statusKey: "neutral_not_issue" },
+    { name: "Letter to UN – Westphalia", statusKey: "green_resolved" },
+    { name: "Letter to Homeland Security", statusKey: "red_standing_by" },
+    { name: "Deutsch Vocabulary", statusKey: "orange_needs_attention" },
+    { name: "Vehicle Safety Inspection", statusKey: "red_standing_by" },
+    { name: "Discover Credit Payment", statusKey: "maroon_jeopardy" },
+  ];
+
+  function categoryClass(cat){
+    return "status-"+cat;
+  }
+
+  function labelColorClass(cat){
+    return "label-"+cat;
+  }
+
+  function render(){
+    mount.innerHTML = "";
+    CONFLICTS.forEach(conflict=>{
+      const statusObj = STATUS_MAP[conflict.statusKey] || STATUS_MAP["neutral_not_issue"];
+      const row=document.createElement("div");
+      row.className="row";
+
+      const labelWrap=document.createElement("div");
+      const label=document.createElement("div");
+      label.className="label "+labelColorClass(statusObj.category);
+      label.textContent=conflict.name;
+
+      const sub=document.createElement("div");
+      sub.className="label-sub";
+      sub.textContent="Status code: "+statusObj.code;
+
+      labelWrap.append(label,sub);
+
+      const status=document.createElement("div");
+      status.className="status-cell";
+
+      const badge=document.createElement("div");
+      badge.className="status-badge "+categoryClass(statusObj.category);
+
+      const code=document.createElement("span");
+      code.className="code";
+      code.textContent=statusObj.code;
+
+      const txt=document.createElement("span");
+      txt.textContent=statusObj.label;
+
+      badge.append(code,txt);
+      status.append(badge);
+      row.append(labelWrap,status);
+      mount.append(row);
+    });
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>
